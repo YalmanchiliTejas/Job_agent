@@ -21,6 +21,13 @@ python -m job_agent --mode list-pending
 python -m job_agent --mode approve --job-id job-1
 ```
 
+To generate a draft with a local OpenClaw server running on your machine:
+
+```bash
+export OPENCLAW_URL="http://localhost:8000"
+python -m job_agent --mode generate-draft --job-id job-1
+```
+
 ## Local OpenClaw design (initial phase)
 
 ### 1) Run OpenClaw locally
@@ -39,6 +46,11 @@ See `job_agent/interfaces.py` for the initial contract definitions.
 ### 3) Implement the local OpenClaw runtime
 Start by wiring a subprocess wrapper in `LocalOpenClaw.start()` and `.generate_outreach()`.
 The goal is to avoid a hosted OpenClaw deployment and keep everything running on your machine.
+
+`job_agent/openclaw_local.py` now includes:
+- `LocalOpenClawConfig.from_env()` for environment-based configuration.
+- A subprocess starter (optional) via `OPENCLAW_START_COMMAND`.
+- An OpenAI-compatible HTTP request to `/v1/chat/completions` (configure with `OPENCLAW_URL`).
 
 ### 4) Add the first storage layer
 `job_agent/storage.py` ships a JSON-backed repository to track job postings and approvals.

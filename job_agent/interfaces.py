@@ -26,6 +26,9 @@ class JobRepository(Protocol):
     def mark_approved(self, job_id: str) -> None:
         """Mark a job application as approved."""
 
+    def get_job_link(self, job_id: str) -> JobLink:
+        """Fetch a stored job link by ID."""
+
 
 class ReviewQueue(Protocol):
     def request_review(self, job_id: str, draft: DraftMessage) -> None:

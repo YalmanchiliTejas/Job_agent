@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 
 from job_agent.interfaces import DraftMessage, JobLink
+from job_agent.openclaw_local import LocalOpenClaw, LocalOpenClawConfig
 from job_agent.review import LocalReviewQueue
 from job_agent.storage import JsonJobRepository
 
@@ -18,13 +20,18 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--mode",
-        choices=("design", "add-link", "list-pending", "approve"),
+        choices=("design", "add-link", "list-pending", "approve", "generate-draft"),
         default="design",
         help="Run the basic design walkthrough.",
     )
     parser.add_argument("--url", help="Job link URL for add-link mode.")
     parser.add_argument("--source", default="manual", help="Source label for add-link mode.")
     parser.add_argument("--job-id", help="Job ID for approve mode.")
+    parser.add_argument(
+        "--openclaw-url",
+        default=os.environ.get("OPENCLAW_URL"),
+        help="Local OpenClaw server URL (or set OPENCLAW_URL).",
+    )
     return parser.parse_args()
 
 
@@ -67,6 +74,29 @@ def main() -> None:
             raise SystemExit("--job-id is required for approve mode.")
         repo.mark_approved(args.job_id)
         print(f"Approved {args.job_id}.")
+        return
+    if args.mode == "generate-draft":
+        if not args.job_id:
+            raise SystemExit("--job-id is required for generate-draft mode.")
+        config = LocalOpenClawConfig.from_env()
+        if args.openclaw_url:
+            config.server_url = args.openclaw_url
+        runtime = LocalOpenClaw(config)
+        runtime.start()
+        try:
+            job_link = repo.get_job_link(args.job_id)
+            draft = runtime.generate_outreach(args.job_id)
+            review_queue.request_review(
+                args.job_id,
+                DraftMessage(
+                    subject=draft.subject,
+                    body=f"{draft.body}\n\nJob link: {job_link.url}",
+                ),
+            )
+            print(f"Generated draft for {args.job_id}.")
+        finally:
+            runtime.stop()
+        return
 
 
 if __name__ == "__main__":

@@ -32,6 +32,13 @@ class JsonJobRepository(JobRepository):
         data["jobs"][job_id]["approved"] = True
         self._save(data)
 
+    def get_job_link(self, job_id: str) -> JobLink:
+        data = self._load()
+        payload = data["jobs"].get(job_id)
+        if not payload:
+            raise KeyError(f"Unknown job id: {job_id}")
+        return JobLink(url=payload["url"], source=payload["source"])
+
     def _load(self) -> dict:
         if not self.path.exists():
             return {"jobs": {}}
